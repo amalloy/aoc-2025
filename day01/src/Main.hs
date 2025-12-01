@@ -15,14 +15,22 @@ data Rotation = Rotation Direction Int deriving (Eq, Ord, Show)
 
 type Input = [Rotation]
 
-part1 :: Input -> Int
-part1 = length . filter (== 0) . map (`mod` 100) . scanl (+) 50 . map toOffset
+positions :: [Rotation] -> [Int]
+positions = scanl (+) 50 . map toOffset
   where toOffset (Rotation dir magnitude) = magnitude * case dir of
           L -> -1
           R -> 1
 
-part2 :: Input -> ()
-part2 = const ()
+evenHundreds :: [Int] -> Int
+evenHundreds = length . filter (== 0) . map (`mod` 100)
+
+part1 :: Input -> Int
+part1 = evenHundreds . positions
+
+part2 :: Input -> Int
+part2 = sum . (zipWith zeroes <*> tail) . positions
+  where zeroes x y = evenHundreds (tail [x, next..y])
+          where next = x + signum (y - x)
 
 prepare :: String -> Input
 prepare = fromMaybe (error "no parse") . (=~ input)
