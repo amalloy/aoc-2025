@@ -30,7 +30,7 @@ part2 = sum . (>>= filter invalid . contents)
   where invalid n = any go [1..len `div` 2]
           where go size = case chunksOf size s of
                   (x:more) -> all (== x) more
-                  _ -> error $ "invalid: bad spiit of " <> s
+                  _ -> error $ "invalid: bad " <> show size <> "-way spiit of " <> s
                 s = show n
                 len = length s
 
