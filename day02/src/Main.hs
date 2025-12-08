@@ -4,6 +4,7 @@
 module Main where
 
 import Control.Arrow ((&&&))
+import Data.List.Split (chunksOf)
 import Data.Maybe (fromMaybe)
 
 import Text.Regex.Applicative ((=~), sym)
@@ -14,20 +15,24 @@ data InclusiveRange = InclusiveRange Int Int deriving (Eq, Ord, Show)
 
 type Input = [InclusiveRange]
 
-invalid :: Int -> Bool
-invalid x = front == back
-  where s = show x
-        mid = length s `div` 2
-        (front, back) = splitAt mid s
-
-invalids :: InclusiveRange -> [Int]
-invalids (InclusiveRange lo hi) = filter invalid $ [lo..hi]
+contents :: InclusiveRange -> [Int]
+contents (InclusiveRange lo hi) = [lo..hi]
 
 part1 :: Input -> Int
-part1 = sum . (>>= invalids)
+part1 = sum . (>>= filter invalid . contents)
+  where invalid x = front == back
+          where s = show x
+                mid = length s `div` 2
+                (front, back) = splitAt mid s
 
-part2 :: Input -> String
-part2 = show
+part2 :: Input -> Int
+part2 = sum . (>>= filter invalid . contents)
+  where invalid n = any go [1..len `div` 2]
+          where go size = case chunksOf size s of
+                  (x:more) -> all (== x) more
+                  _ -> error $ "invalid: bad spiit of " <> s
+                s = show n
+                len = length s
 
 prepare :: String -> Input
 prepare = fromMaybe (error "no parse") . (=~ input)
