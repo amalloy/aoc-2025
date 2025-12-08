@@ -23,6 +23,7 @@ executable day02
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , parsec
+                     , parser-combinators
                      , regex-applicative
                      , recursion-schemes
                      , lens

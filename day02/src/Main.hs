@@ -4,17 +4,35 @@
 module Main where
 
 import Control.Arrow ((&&&))
+import Data.Maybe (fromMaybe)
 
-type Input = [String]
+import Text.Regex.Applicative ((=~), sym)
+import Text.Regex.Applicative.Common (decimal)
+import Control.Applicative.Combinators (sepBy)
 
-part1 :: Input -> ()
-part1 = const ()
+data InclusiveRange = InclusiveRange Int Int deriving (Eq, Ord, Show)
 
-part2 :: Input -> ()
-part2 = const ()
+type Input = [InclusiveRange]
+
+invalid :: Int -> Bool
+invalid x = front == back
+  where s = show x
+        mid = length s `div` 2
+        (front, back) = splitAt mid s
+
+invalids :: InclusiveRange -> [Int]
+invalids (InclusiveRange lo hi) = filter invalid $ [lo..hi]
+
+part1 :: Input -> Int
+part1 = sum . (>>= invalids)
+
+part2 :: Input -> String
+part2 = show
 
 prepare :: String -> Input
-prepare = lines
+prepare = fromMaybe (error "no parse") . (=~ input)
+  where input = (range `sepBy` sym ',') <* sym '\n'
+        range = InclusiveRange <$> decimal <*> (sym '-' *> decimal)
 
 main :: IO ()
 main = readFile "input.txt" >>= print . (part1 &&& part2) . prepare
