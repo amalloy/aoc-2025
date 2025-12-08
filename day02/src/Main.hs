@@ -20,8 +20,8 @@ contents (InclusiveRange lo hi) = [lo..hi]
 
 part1 :: Input -> Int
 part1 = sum . (>>= filter invalid . contents)
-  where invalid x = front == back
-          where s = show x
+  where invalid n = front == back
+          where s = show n
                 mid = length s `div` 2
                 (front, back) = splitAt mid s
 
