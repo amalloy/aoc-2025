@@ -5,6 +5,8 @@ module Main where
 
 import Control.Arrow ((&&&))
 import Data.Maybe (fromMaybe)
+import Data.Interval ((<=..<=), width, Extended(Finite))
+import Data.IntervalSet (singleton, toList)
 
 import Text.Regex.Applicative ((=~), sym, some)
 import Text.Regex.Applicative.Common (decimal)
@@ -20,8 +22,12 @@ part1 :: Input -> Int
 part1 (Input ranges available) = length . filter fresh $ available
   where fresh i = any (`contains` i) ranges
 
-part2 :: Input -> ()
-part2 = const ()
+part2 :: Input -> Int
+part2 (Input ranges _) = sum . map size . toList $ combinedRange
+  where combinedRange = mconcat $ do
+          Range lo hi <- ranges
+          pure . singleton $ Finite lo <=..<= Finite hi
+        size = succ . width -- Because we're counting fence posts, not fence length
 
 prepare :: String -> Input
 prepare = fromMaybe (error "no parse") . (=~ input)
