@@ -22,13 +22,18 @@ directions = S.fromList . tail $ do
   dx <- [0, 1, -1]
   pure $ Coord dy dx
 
-part1 :: Input -> Int
-part1 rolls = length . S.filter accessible $ rolls
+accessibles :: S.Set Coord -> S.Set Coord
+accessibles rolls = S.filter accessible $ rolls
   where accessible roll = length neighbors < 4
           where neighbors = S.intersection rolls . S.map (roll <>) $ directions
 
-part2 :: Input -> ()
-part2 = const ()
+part1 :: Input -> Int
+part1 = length . accessibles
+
+part2 :: Input -> Int
+part2 rolls = length rolls - (length . fixPoint removeAccessibles $ rolls)
+  where removeAccessibles r = r S.\\ accessibles r
+        fixPoint f = fst . head . dropWhile (uncurry (/=)) . (zip <*> tail) . iterate f
 
 prepare :: String -> Input
 prepare text = S.fromList $ do
