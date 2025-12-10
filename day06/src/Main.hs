@@ -4,17 +4,43 @@
 module Main where
 
 import Control.Arrow ((&&&))
+import Control.Applicative (ZipList(..))
+import Data.Functor.Identity (Identity)
+import Data.Maybe (fromMaybe)
 
-type Input = [String]
+import Text.Regex.Applicative ((=~), some, many, sym, (<|>))
+import Text.Regex.Applicative.Common (decimal)
 
-part1 :: Input -> ()
-part1 = const ()
+type Operand = Int
+data Operator = Plus | Times deriving (Eq, Ord, Show)
+
+apply :: Operator -> (forall a. Num a => a -> a -> a)
+apply Plus = (+)
+apply Times = (*)
+
+data ProblemF f = ProblemF (f (ZipList Operand)) (f Operator)
+type Problem = ProblemF Identity
+type Input = ProblemF ZipList
+
+solve :: Applicative f => ProblemF f -> f Int
+solve (ProblemF args ops) = go <$> args <*> ops
+  where go arg op = foldl1 (apply op) arg
+
+part1 :: Input -> Int
+part1 (ProblemF args ops) = sum . solve $ ProblemF args' ops
+  where args' = sequenceA args
 
 part2 :: Input -> ()
 part2 = const ()
 
 prepare :: String -> Input
-prepare = lines
+prepare = fromMaybe (error "no parse") . (=~ input)
+  where p `sepBy` sep = opt sep *> ((:) <$> p <*> (many (sep *> p) <* opt sep))
+        opt p = p <|> mempty
+        input = ProblemF <$> (ZipList <$> some (row arg)) <*> (row op)
+        row p = ZipList <$> ((p `sepBy` (some (sym ' '))) <* sym '\n')
+        arg = decimal
+        op = (Plus <$ sym '+') <|> (Times <$ sym '*')
 
 main :: IO ()
 main = readFile "input.txt" >>= print . (part1 &&& part2) . prepare
