@@ -22,6 +22,7 @@ executable day08
               -Wredundant-constraints
   build-depends:       base >= 4.7 && < 5
                      , containers
+                     , union-find-array
                      , parsec
                      , regex-applicative
                      , recursion-schemes
