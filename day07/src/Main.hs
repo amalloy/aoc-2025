@@ -13,10 +13,25 @@ data Coord = Coord Int Int deriving (Eq, Ord, Show)
 type Intensity = Int
 newtype SplitterInfo = SplitterInfo Intensity deriving (Eq, Ord, Show)
 
+moveDown :: Coord -> Coord
+moveDown (Coord y x) = Coord (y + 1) x
+
 type Input = (Coord, M.Map Coord SplitterInfo)
 
-part1 :: Input -> ()
-part1 = const ()
+part1 :: Input -> Int
+part1 (start, splitters) = go splitters (M.singleton start 1)
+  where (lastSplitterPos, _) = M.findMax splitters
+        go splitters queue | pos > lastSplitterPos = length . filter visited . M.elems $ splitters
+                           | otherwise = case M.lookup pos' splitters of
+                               Nothing -> go splitters (M.insert pos' intensity queue')
+                               Just (SplitterInfo i) -> go splitters' queue''
+                                 where splitters' = M.insert pos' (SplitterInfo (intensity + i)) splitters
+                                       queue'' = M.unionWith (+) queue' . M.fromList $ do
+                                         dx <- [-1, 1]
+                                         pure $ (Coord y (x + dx), intensity)
+          where ((pos, intensity), queue') = M.deleteFindMin queue
+                pos'@(Coord y x) = moveDown pos
+                visited (SplitterInfo i) = i > 0
 
 part2 :: Input -> ()
 part2 = const ()
