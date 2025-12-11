@@ -18,12 +18,12 @@ moveDown (Coord y x) = Coord (y + 1) x
 
 type Input = (Coord, M.Map Coord SplitterInfo)
 
-part1 :: Input -> Int
-part1 (start, splitters) = go splitters (M.singleton start 1)
+runTachyons :: Input -> ([Intensity], [SplitterInfo])
+runTachyons (start, splitters) = go splitters (M.singleton start 1)
   where (lastSplitterPos, _) = M.findMax splitters
-        go splitters queue | pos > lastSplitterPos = length . filter visited . M.elems $ splitters
+        go splitters queue | pos > lastSplitterPos = (M.elems queue, M.elems splitters)
                            | otherwise = case M.lookup pos' splitters of
-                               Nothing -> go splitters (M.insert pos' intensity queue')
+                               Nothing -> go splitters (M.insertWith (+) pos' intensity queue')
                                Just (SplitterInfo i) -> go splitters' queue''
                                  where splitters' = M.insert pos' (SplitterInfo (intensity + i)) splitters
                                        queue'' = M.unionWith (+) queue' . M.fromList $ do
@@ -31,10 +31,13 @@ part1 (start, splitters) = go splitters (M.singleton start 1)
                                          pure $ (Coord y (x + dx), intensity)
           where ((pos, intensity), queue') = M.deleteFindMin queue
                 pos'@(Coord y x) = moveDown pos
-                visited (SplitterInfo i) = i > 0
 
-part2 :: Input -> ()
-part2 = const ()
+part1 :: Input -> Int
+part1 = length . filter visited . snd . runTachyons
+  where visited (SplitterInfo i) = i > 0
+
+part2 :: Input -> Int
+part2 = sum . fst . runTachyons
 
 prepare :: String -> Input
 prepare file = case parse (lines file) of
