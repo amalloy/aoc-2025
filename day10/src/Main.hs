@@ -8,49 +8,67 @@ import Control.Monad (replicateM)
 import Control.Monad.Identity (Identity(..))
 import Data.Maybe (fromMaybe)
 
-import qualified Data.IntSet as S
+import qualified Data.IntMap as M
+import Data.IntMap (IntMap)
+import qualified Data.IntSet as I
 import Data.IntSet (IntSet)
+import qualified Data.Set as S
+import Data.Set (Set)
 
 import Text.Regex.Applicative ((=~), (<|>), some, many, sym)
 import Text.Regex.Applicative.Common (decimal)
 
 type Joltage = Int
 type Button = IntSet
-data Machine = Machine IntSet [Button] [Joltage] deriving Show
+data Machine = Machine IntSet [Button] (IntMap Int) deriving Show
 type Input = [Machine]
 
 toInts :: [Bool] -> IntSet
-toInts = S.fromList . map fst . filter snd . zip [0..]
-
-solutions :: Machine -> [IntSet]
-solutions (Machine goal buttons _joltages) = map toInts . filter solved $ buttonChoices
-  where buttonChoices = replicateM (length buttons) [False, True]
-        solved :: [Bool] -> Bool
-        solved = (== goal) . S.foldl' press S.empty . toInts
-        press :: IntSet -> Int -> IntSet
-        press lights buttonIdx = S.foldl' toggle lights (buttons !! buttonIdx)
-        toggle :: IntSet -> Int -> IntSet
-        toggle lights lightNum = runIdentity (S.alterF invert lightNum lights)
-        invert :: Bool -> Identity Bool
-        invert b = Identity (not b)
+toInts = I.fromList . map fst . filter snd . zip [0..]
 
 part1 :: Input -> Int
-part1 = sum . map (minimum . map S.size . solutions)
+part1 = sum . map (minimum . map I.size . solutions)
+  where solutions :: Machine -> [IntSet]
+        solutions (Machine goal buttons _joltages) = map toInts . filter solved $ buttonChoices
+          where buttonChoices = replicateM (length buttons) [False, True]
+                solved :: [Bool] -> Bool
+                solved = (== goal) . I.foldl' press I.empty . toInts
+                press :: IntSet -> Int -> IntSet
+                press lights buttonIdx = I.foldl' toggle lights (buttons !! buttonIdx)
+                toggle :: IntSet -> Int -> IntSet
+                toggle lights lightNum = runIdentity (I.alterF invert lightNum lights)
+                invert :: Bool -> Identity Bool
+                invert b = Identity (not b)
 
-part2 :: Input -> ()
-part2 = const ()
+part2 :: Input -> Int
+part2 = sum . map solution
+  where solution :: Machine -> Int
+        solution (Machine _lights buttons joltages) = go (S.singleton $ joltages)
+          where go :: Set (IntMap Int) -> Int
+                go states = case traverse children (S.toList states) of
+                  Nothing -> 0
+                  Just states' -> 1 + go (S.fromList $ concat states')
+                children :: IntMap Int -> Maybe [IntMap Int]
+                children s | minimum (M.elems s) < 0 = Just []
+                           | maximum (M.elems s) == 0 = Nothing
+                           | otherwise = Just $ map press buttons
+                  where press :: Button -> IntMap Int
+                        press = I.foldl' decreaseJoltage s
+                        decreaseJoltage state joltageIndex = M.alter decrease joltageIndex state
+                        decrease Nothing = error "Key not found"
+                        decrease (Just i) = Just (i - 1)
 
 prepare :: String -> Input
 prepare = fromMaybe (error "no parse") . (=~ input)
   where input = some (machine <* sym '\n')
         machine = Machine <$>
           (lights <* sym ' ') <*>
-          some (S.fromList <$> button <* sym ' ') <*>
+          some (I.fromList <$> button <* sym ' ') <*>
           joltages
         lights = sym '[' *> (toInts <$> some light) <* sym ']'
         light = (True <$ sym '#') <|> (False <$ sym '.')
         ints open close = sym open *> (decimal `sepBy` sym ',') <* sym close
-        joltages = ints '{' '}'
+        joltages = M.fromList . zip [0..] <$> ints '{' '}'
         button = ints '(' ')'
         p `sepBy` sep = (:) <$> p <*> many (sep *> p)
 
