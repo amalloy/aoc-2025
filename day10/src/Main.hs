@@ -6,7 +6,9 @@ module Main where
 import Control.Arrow ((&&&))
 import Control.Monad (replicateM)
 import Control.Monad.Identity (Identity(..))
+import Data.Bool (bool)
 import Data.Maybe (fromMaybe)
+import Data.Traversable (for)
 
 import qualified Data.IntMap as M
 import Data.IntMap (IntMap)
@@ -17,6 +19,8 @@ import Data.Set (Set)
 
 import Text.Regex.Applicative ((=~), (<|>), some, many, sym)
 import Text.Regex.Applicative.Common (decimal)
+
+import Math.LinearEquationSolver (Solver(Z3), solveIntegerLinearEqsAll)
 
 type Joltage = Int
 type Button = IntSet
@@ -40,23 +44,31 @@ part1 = sum . map (minimum . map I.size . solutions)
                 invert :: Bool -> Identity Bool
                 invert b = Identity (not b)
 
-part2 :: Input -> Int
-part2 = sum . map solution
-  where solution :: Machine -> Int
-        solution (Machine _lights buttons joltages) = go (S.singleton $ joltages)
-          where go :: Set (IntMap Int) -> Int
-                go states = case traverse children (S.toList states) of
-                  Nothing -> 0
-                  Just states' -> 1 + go (S.fromList $ concat states')
-                children :: IntMap Int -> Maybe [IntMap Int]
-                children s | minimum (M.elems s) < 0 = Just []
-                           | maximum (M.elems s) == 0 = Nothing
-                           | otherwise = Just $ map press buttons
-                  where press :: Button -> IntMap Int
-                        press = I.foldl' decreaseJoltage s
-                        decreaseJoltage state joltageIndex = M.alter decrease joltageIndex state
-                        decrease Nothing = error "Key not found"
-                        decrease (Just i) = Just (i - 1)
+part2 :: Input -> IO Int
+part2 = fmap sum . traverse (uncurry solution) . zip [0..]
+  where solution :: Int -> Machine -> IO Int
+        solution machineIdx (Machine _lights buttons joltages) =
+          let numResults = length joltages
+              coeffs = (1 <$ buttons) : do
+                r <- [0..numResults - 1]
+                pure $ do
+                  b <- buttons
+                  pure . bool 0 1 $ r `I.member` b
+              results = fromIntegral <$> M.elems joltages
+              minPressesNeeded = fromIntegral $ maximum joltages
+              maxPressesNeeded = fromIntegral $ sum joltages `div` (minimum . map I.size $ buttons)
+              attempts = do
+                totalPresses <- [minPressesNeeded..maxPressesNeeded]
+                pure $ do
+                  putStrLn $ "Trying " <> show totalPresses <> " buttons (giving up at " <> show maxPressesNeeded <> ")"
+                  solveIntegerLinearEqsAll Z3 (fromIntegral $ totalPresses * 2) coeffs (totalPresses : results)
+              findFirst [] = error "No solutions"
+              findFirst (att:atts) = do
+                try <- att
+                case filter (all (>= 0)) try of
+                  [] -> findFirst atts
+                  (sol:_) -> pure . fromIntegral . sum $ sol
+          in putStrLn ("Solving machine #" <> show machineIdx) *> findFirst attempts
 
 prepare :: String -> Input
 prepare = fromMaybe (error "no parse") . (=~ input)
@@ -73,4 +85,7 @@ prepare = fromMaybe (error "no parse") . (=~ input)
         p `sepBy` sep = (:) <$> p <*> many (sep *> p)
 
 main :: IO ()
-main = readFile "input.txt" >>= print . (part1 &&& part2) . prepare
+main = do
+  input <- prepare <$> readFile "input.txt"
+  print $ part1 input
+  print =<< part2 input
