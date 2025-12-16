@@ -20,9 +20,10 @@ executable day10
               -Wcompat
               -Wincomplete-uni-patterns
               -Wredundant-constraints
+              -Wno-unused-do-bind
   build-depends:       base >= 4.7 && < 5
                      , containers
-                     , linearEqSolver
+                     , z3
                      , parsec
                      , regex-applicative
                      , recursion-schemes
